@@ -100,11 +100,12 @@ test-booking-service:
     - name: postgres:16
       alias: postgres
   script:
-    # BookingConcurrencyTest excluded from CI — requires Docker-in-Docker
-    # (privileged runner mode), not currently available on this runner.
-    # Run manually with `./gradlew test` locally to verify the concurrency guarantee.
+    # BookingConcurrencyTest excluded from CI via build.gradle.kts (CI env var check)
+    # — requires Docker-in-Docker (privileged runner mode), not currently
+    # available on this runner. Run manually with `./gradlew test` locally
+    # to verify the concurrency guarantee.
     - apt-get update && apt-get install -y postgresql-client
     - until pg_isready -h postgres -p 5432 -U postgres; do echo "Waiting for postgres..."; sleep 2; done
     - cd booking-service
     - chmod +x gradlew
-    - ./gradlew test --tests "*" --tests "!BookingConcurrencyTest"
+    - ./gradlew test
