@@ -84,3 +84,29 @@ test-review-service:
     - cd review-service
     - chmod +x gradlew
     - ./gradlew test
+
+test-booking-service:
+  stage: test
+  image: eclipse-temurin:21-jdk
+  variables:
+    FF_NETWORK_PER_BUILD: "true"
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: postgres
+    POSTGRES_DB: bookingdb
+    SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/bookingdb
+    SPRING_DATASOURCE_USERNAME: postgres
+    SPRING_DATASOURCE_PASSWORD: postgres
+    TESTCONTAINERS_HOST_OVERRIDE: docker
+  services:
+    - name: postgres:16
+      alias: postgres
+    - name: docker:dind
+      alias: docker
+  script:
+    - apt-get update && apt-get install -y postgresql-client curl
+    - until pg_isready -h postgres -p 5432 -U postgres; do echo "Waiting for postgres..."; sleep 2; done
+    - cd booking-service
+    - chmod +x gradlew
+    - ./gradlew test
