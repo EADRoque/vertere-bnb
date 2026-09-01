@@ -4,14 +4,15 @@ stages:
 test-user-service:
   stage: test
   image: eclipse-temurin:21-jdk
-  services:
-    - name: postgres:16
-      alias: userdb-postgres
   variables:
+    FF_NETWORK_PER_BUILD: "true"
     POSTGRES_USER: postgres
     POSTGRES_PASSWORD: postgres
     POSTGRES_DB: userdb
+  services:
+    - name: postgres:16
+      alias: postgres
   script:
     - cd user-service
     - chmod +x gradlew
-    - ./gradlew test -Dspring.datasource.url=jdbc:postgresql://userdb-postgres:5432/userdb
+    - ./gradlew test -Dspring.datasource.url=jdbc:postgresql://postgres:5432/userdb
