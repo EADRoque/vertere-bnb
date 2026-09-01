@@ -6,4 +6,5 @@ test-user-service:
   image: eclipse-temurin:21-jdk
   script:
     - cd user-service
+    - chmod +x gradlew
     - ./gradlew test
