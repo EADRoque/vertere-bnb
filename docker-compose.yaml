@@ -1,0 +1,59 @@
+services:   #declaration of containers manage in this compose file
+  postgres:   #name of the service
+    image: postgres:16    #pulls the official Postgres image, version 16 from Docker Hub
+    container_name: vertere-bnb-postgres    #container name
+    restart: unless-stopped   #automatically restarts the container if it crashes or Docker reboots
+    environment:    #define environment variables
+      POSTGRES_USER: postgres   #creates a superuser named postgres
+      POSTGRES_PASSWORD: postgres   #sets the superuser's password to postgres
+    ports:    #maps ports between host and container
+      - "5432:5432"   #default port of postgres (5432) in local machine mapped to port 5432 inside the container, to connect to localhost:5432 
+    volumes: #mounts persistent storage/config in the container
+      - pgdata:/var/lib/postgresql/data   #mount a named Docker volume to postgres's data directory, so that db data still survives during restart or removal
+      - ./db-init:/docker-entrypoint-initdb.d   #binds local db-init folder to postgres's init-scripts directory, any .sql or .sh files there run automatically on the container initialization
+
+  booking-postgres:
+    image: postgres:16
+    container_name: vertere-bnb-booking-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: bookingdb
+    ports:
+      - "5433:5432"
+    volumes:
+      - booking_pgdata:/var/lib/postgresql/data
+      - ./booking-db-init:/docker-entrypoint-initdb.d
+  
+  payment-postgres:
+    image: postgres:16
+    container_name: vertere-bnb-payment-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: paymentdb
+    ports:
+      - "5434:5432"
+    volumes:
+      - payment_pgdata:/var/lib/postgresql/data
+
+  review-postgres:
+    image: postgres:16
+    container_name: vertere-bnb-review-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: reviewdb
+    ports:
+      - "5435:5432"
+    volumes:
+      - review_pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
+  booking_pgdata:
+  payment_pgdata:
+  review_pgdata:

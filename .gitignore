@@ -1,0 +1,27 @@
+# Build outputs (every service has one of these)
+**/build/
+**/.gradle/
+
+# IDE-specific files
+.idea/
+.vscode/
+*.iml
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Future frontend (once we get there)
+**/node_modules/
+**/dist/
+
+.github/modernize/
+
+# Excluded for now — will be added deliberately later
+reference-docs/
+
+# Stray debug output files
+**/build_error.txt

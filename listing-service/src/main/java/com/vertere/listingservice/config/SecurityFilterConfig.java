@@ -1,0 +1,56 @@
+package com.vertere.listingservice.config;  //which folder/namespace this class belongs to
+
+import org.springframework.context.annotation.Bean;   //marks a method whose return value Spring should manage
+import org.springframework.context.annotation.Configuration;   //tells Spring "this class defines beans/config"
+import org.springframework.http.HttpMethod;   //used to restrict a rule to a specific HTTP verb (e.g. GET)
+import org.springframework.http.HttpStatus;   //the status code returned when auth fails
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;   //the builder used to configure security rules
+import org.springframework.security.config.http.SessionCreationPolicy;   //controls whether Spring creates HTTP sessions
+import org.springframework.security.web.SecurityFilterChain;   //the finished, built set of security rules
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;   //what to send back when an unauthenticated user hits a protected route
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;   //the built-in filter our custom JWT filter runs before
+
+import com.vertere.listingservice.security.JwtAuthFilter;   //our custom filter that reads and verifies JWTs
+
+/**
+ * This class configures how Spring Security handles every incoming
+ * request - which routes are public, which require login, and how
+ * authentication is checked (via our JwtAuthFilter instead of sessions
+ * or basic auth).
+ *
+ * - jwtAuthFilter: the filter that reads the Authorization header and
+ *   marks requests as authenticated.
+ * - securityFilterChain: builds the actual rule set - disables CSRF
+ *   (not needed for a stateless, token-based API), disables server-side
+ *   sessions, returns 401 instead of a login redirect when auth is
+ *   missing, allows anyone to GET listings, requires authentication for
+ *   everything else, and plugs in jwtAuthFilter to do that authentication
+ *   check.
+ */
+@Configuration   //tells Spring "this class defines beans/config to load at startup"
+public class SecurityFilterConfig {
+
+    private final JwtAuthFilter jwtAuthFilter;
+
+    public SecurityFilterConfig(JwtAuthFilter jwtAuthFilter) {   //Spring automatically supplies this bean
+        this.jwtAuthFilter = jwtAuthFilter;
+    }
+
+    @Bean   //Spring will call this once at startup and manage the resulting SecurityFilterChain
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+                .csrf(csrf -> csrf.disable())   //not needed - this is a stateless API, not a browser session app
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))   //don't create/use HTTP sessions; every request must carry its own token
+                .exceptionHandling(ex ->
+                        ex.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))   //return 401 instead of redirecting to a login page
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.GET, "/listings/**").permitAll()   //anyone can browse/search listings without logging in
+                        .anyRequest().authenticated()   //everything else (create/update/delete/etc.) requires a valid token
+                )
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);   //run our JWT check before Spring's default auth filter
+
+        return http.build();
+    }
+
+}
