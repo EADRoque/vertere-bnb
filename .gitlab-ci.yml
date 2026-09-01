@@ -21,3 +21,24 @@ test-user-service:
     - cd user-service
     - chmod +x gradlew
     - ./gradlew test
+
+test-listing-service:
+  stage: test
+  image: eclipse-temurin:21-jdk
+  variables:
+    FF_NETWORK_PER_BUILD: "true"
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: postgres
+    POSTGRES_DB: listingdb
+    SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/listingdb
+    SPRING_DATASOURCE_USERNAME: postgres
+    SPRING_DATASOURCE_PASSWORD: postgres
+  services:
+    - name: postgres:16
+      alias: postgres
+  script:
+    - apt-get update && apt-get install -y postgresql-client
+    - until pg_isready -h postgres -p 5432 -U postgres; do echo "Waiting for postgres..."; sleep 2; done
+    - cd listing-service
+    - chmod +x gradlew
+    - ./gradlew test
