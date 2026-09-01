@@ -1,0 +1,9 @@
+stages:
+  - test
+
+test-user-service:
+  stage: test
+  image: eclipse-temurin:21-jdk
+  script:
+    - cd user-service
+    - ./gradlew test
