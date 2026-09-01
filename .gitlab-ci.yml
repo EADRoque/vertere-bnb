@@ -6,7 +6,7 @@ test-user-service:
   image: eclipse-temurin:21-jdk
   services:
     - name: postgres:16
-      alias: postgres
+      alias: userdb-postgres
   variables:
     POSTGRES_USER: postgres
     POSTGRES_PASSWORD: postgres
@@ -14,4 +14,4 @@ test-user-service:
   script:
     - cd user-service
     - chmod +x gradlew
-    - ./gradlew test -Dspring.datasource.url=jdbc:postgresql://postgres:5432/userdb
+    - ./gradlew test -Dspring.datasource.url=jdbc:postgresql://userdb-postgres:5432/userdb
