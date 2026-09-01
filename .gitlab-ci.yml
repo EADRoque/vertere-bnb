@@ -9,6 +9,9 @@ test-user-service:
     POSTGRES_USER: postgres
     POSTGRES_PASSWORD: postgres
     POSTGRES_DB: userdb
+    SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/userdb
+    SPRING_DATASOURCE_USERNAME: postgres
+    SPRING_DATASOURCE_PASSWORD: postgres
   services:
     - name: postgres:16
       alias: postgres
@@ -17,4 +20,4 @@ test-user-service:
     - until pg_isready -h postgres -p 5432 -U postgres; do echo "Waiting for postgres..."; sleep 2; done
     - cd user-service
     - chmod +x gradlew
-    - ./gradlew test -Dspring.datasource.url=jdbc:postgresql://postgres:5432/userdb
+    - ./gradlew test
