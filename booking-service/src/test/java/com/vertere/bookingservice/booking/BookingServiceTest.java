@@ -46,6 +46,7 @@ class BookingServiceTest {
 
     private UUID guestId;
     private UUID listingId;
+    private static final String AUTH_HEADER = "Bearer test-token";
 
     @BeforeEach
     void setUp() {
@@ -57,12 +58,12 @@ class BookingServiceTest {
     void createBooking_succeeds_whenPaymentSucceeds() {
         CreateBookingRequest request = new CreateBookingRequest(listingId, LocalDate.of(2026, 6, 10), LocalDate.of(2026, 6, 15));
 
-        when(listingClient.getBlockedDates(any(), any(), any())).thenReturn(List.of());
-        when(listingClient.getBasePrice(listingId)).thenReturn(new BigDecimal("100.00"));
+        when(listingClient.getBlockedDates(any(), any(), any(), any())).thenReturn(List.of());
+        when(listingClient.getBasePrice(any(), any())).thenReturn(new BigDecimal("100.00"));
         when(bookingRepository.save(any(Booking.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(paymentClient.charge(any(), any())).thenReturn(true);
+        when(paymentClient.charge(any(), any(), any())).thenReturn(true);
 
-        BookingResponse response = bookingService.createBooking(guestId, request);
+        BookingResponse response = bookingService.createBooking(guestId, AUTH_HEADER, request);
 
         assertEquals(new BigDecimal("500.00"), response.totalAmount());
         assertEquals("CONFIRMED", response.status());
@@ -72,12 +73,12 @@ class BookingServiceTest {
     void createBooking_cancelsBooking_whenPaymentDeclined() {
         CreateBookingRequest request = new CreateBookingRequest(listingId, LocalDate.of(2026, 6, 10), LocalDate.of(2026, 6, 15));
 
-        when(listingClient.getBlockedDates(any(), any(), any())).thenReturn(List.of());
-        when(listingClient.getBasePrice(listingId)).thenReturn(new BigDecimal("100.00"));
+        when(listingClient.getBlockedDates(any(), any(), any(), any())).thenReturn(List.of());
+        when(listingClient.getBasePrice(any(), any())).thenReturn(new BigDecimal("100.00"));
         when(bookingRepository.save(any(Booking.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(paymentClient.charge(any(), any())).thenReturn(false);
+        when(paymentClient.charge(any(), any(), any())).thenReturn(false);
 
-        BookingResponse response = bookingService.createBooking(guestId, request);
+        BookingResponse response = bookingService.createBooking(guestId, AUTH_HEADER, request);
 
         assertEquals("CANCELLED", response.status());
     }
@@ -86,9 +87,9 @@ class BookingServiceTest {
     void createBooking_throwsException_whenDatesAreBlocked() {
         CreateBookingRequest request = new CreateBookingRequest(listingId, LocalDate.of(2026, 6, 10), LocalDate.of(2026, 6, 15));
 
-        when(listingClient.getBlockedDates(any(), any(), any())).thenReturn(List.of(LocalDate.of(2026, 6, 12)));
+        when(listingClient.getBlockedDates(any(), any(), any(), any())).thenReturn(List.of(LocalDate.of(2026, 6, 12)));
 
-        assertThrows(DatesUnavailableException.class, () -> bookingService.createBooking(guestId, request));
+        assertThrows(DatesUnavailableException.class, () -> bookingService.createBooking(guestId, AUTH_HEADER, request));
 
         verify(bookingRepository, never()).save(any(Booking.class));
     }
@@ -97,20 +98,20 @@ class BookingServiceTest {
     void createBooking_throwsException_whenListingServiceFails() {
         CreateBookingRequest request = new CreateBookingRequest(listingId, LocalDate.of(2026, 6, 10), LocalDate.of(2026, 6, 15));
 
-        when(listingClient.getBlockedDates(any(), any(), any())).thenThrow(new RuntimeException("connection refused"));
+        when(listingClient.getBlockedDates(any(), any(), any(), any())).thenThrow(new RuntimeException("connection refused"));
 
-        assertThrows(ListingServiceUnavailableException.class, () -> bookingService.createBooking(guestId, request));
+        assertThrows(ListingServiceUnavailableException.class, () -> bookingService.createBooking(guestId, AUTH_HEADER, request));
     }
 
     @Test
     void createBooking_throwsException_whenDatabaseRejectsOverlap() {
         CreateBookingRequest request = new CreateBookingRequest(listingId, LocalDate.of(2026, 6, 10), LocalDate.of(2026, 6, 15));
 
-        when(listingClient.getBlockedDates(any(), any(), any())).thenReturn(List.of());
-        when(listingClient.getBasePrice(listingId)).thenReturn(new BigDecimal("100.00"));
+        when(listingClient.getBlockedDates(any(), any(), any(), any())).thenReturn(List.of());
+        when(listingClient.getBasePrice(any(), any())).thenReturn(new BigDecimal("100.00"));
         when(bookingRepository.save(any(Booking.class))).thenThrow(new DataIntegrityViolationException("overlap"));
 
-        assertThrows(DatesUnavailableException.class, () -> bookingService.createBooking(guestId, request));
+        assertThrows(DatesUnavailableException.class, () -> bookingService.createBooking(guestId, AUTH_HEADER, request));
     }
 
     @Test

@@ -1,65 +1,44 @@
-package com.vertere.bookingservice.booking;  //which folder/namespace this class belongs to
+package com.vertere.bookingservice.booking;
 
-import java.math.BigDecimal;   //precise number type used for money (nightly rate, total amount)
-import java.time.Instant;
-import java.time.LocalDate;   //represents a calendar date with no time component
-import java.time.temporal.ChronoUnit;   //used to count the number of nights between two dates
-import java.util.List;   //the collection type used for blocked dates
-import java.util.UUID;   //the type used for guest/listing/booking ids
-import java.util.stream.Collectors;
-
-import org.springframework.dao.DataIntegrityViolationException;   //thrown when the database rejects a save due to a constraint violation
-import org.springframework.stereotype.Service;   //tells Spring "this class holds business logic, manage it as a bean"
-
-import com.vertere.bookingservice.booking.dto.BookingResponse;   //the shape of what we send back about a booking
-import com.vertere.bookingservice.booking.dto.CreateBookingRequest;   //the shape of an incoming "create a booking" request
-import com.vertere.bookingservice.booking.exception.BookingNotFoundException;   //thrown when the requested dates can't be booked
+import com.vertere.bookingservice.booking.dto.BookingResponse;
+import com.vertere.bookingservice.booking.dto.CreateBookingRequest;
+import com.vertere.bookingservice.booking.exception.BookingNotFoundException;
 import com.vertere.bookingservice.booking.exception.DatesUnavailableException;
 import com.vertere.bookingservice.booking.exception.ListingServiceUnavailableException;
 import com.vertere.bookingservice.booking.exception.NotBookingOwnerException;
-import com.vertere.bookingservice.client.ListingClient;   //talks to listing-service over HTTP to check prices/availability
+import com.vertere.bookingservice.client.ListingClient;
 import com.vertere.bookingservice.client.PaymentClient;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.stereotype.Service;
 
-/**
- * This class holds the actual business logic for creating bookings -
- * the controller layer calls into here instead of talking to the
- * database or listing-service directly.
- *
- * - bookingRepository: how this service reads/writes Booking rows in
- *   the database.
- * - listingClient: how this service asks listing-service (a separate
- *   microservice) for a listing's price and blocked dates.
- * - createBooking: checks the host-blocked dates for the requested
- *   range, calculates the total price from the listing's nightly rate,
- *   saves the booking, and returns it as a BookingResponse. The database
- *   itself is the final safety net against double-booking (see the
- *   no_overlapping_bookings constraint) - if two guests race to book the
- *   same dates, the losing save fails and is turned into the same
- *   "unavailable" error.
- * - toResponse: a small private helper that converts our internal
- *   Booking entity into the safe, public-facing BookingResponse shape.
- */
-@Service   //makes this class a Spring-managed bean so it can be injected elsewhere (e.g. into a controller)
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+@Service
 public class BookingService {
 
     private final BookingRepository bookingRepository;
     private final ListingClient listingClient;
     private final PaymentClient paymentClient;
 
-
-    public BookingService(BookingRepository bookingRepository, ListingClient listingClient, PaymentClient paymentClient) {   //Spring automatically supplies these beans
+    public BookingService(BookingRepository bookingRepository, ListingClient listingClient, PaymentClient paymentClient) {
         this.bookingRepository = bookingRepository;
         this.listingClient = listingClient;
         this.paymentClient = paymentClient;
     }
 
-    public BookingResponse createBooking(UUID guestUserId, CreateBookingRequest request) {
+    public BookingResponse createBooking(UUID guestUserId, String authHeader, CreateBookingRequest request) {
         List<LocalDate> blockedDates;
         BigDecimal nightlyRate;
 
         try {
-            blockedDates = listingClient.getBlockedDates(request.listingId(), request.checkIn(), request.checkOut());
-            nightlyRate = listingClient.getBasePrice(request.listingId());
+            blockedDates = listingClient.getBlockedDates(request.listingId(), request.checkIn(), request.checkOut(), authHeader);
+            nightlyRate = listingClient.getBasePrice(request.listingId(), authHeader);
         } catch (Exception e) {
             throw new ListingServiceUnavailableException("Listing service is currently unavailable, please try again");
         }
@@ -88,7 +67,7 @@ public class BookingService {
 
         boolean paymentSucceeded;
         try {
-            paymentSucceeded = paymentClient.charge(saved.getId(), saved.getTotalAmount());
+            paymentSucceeded = paymentClient.charge(saved.getId(), saved.getTotalAmount(), authHeader);
         } catch (Exception e) {
             paymentSucceeded = false;
         }
@@ -102,7 +81,7 @@ public class BookingService {
 
         Booking finalBooking = bookingRepository.save(saved);
         return toResponse(finalBooking);
-}
+    }
 
     public void cancelBooking(UUID bookingId, UUID requestingUserId) {
         Booking booking = bookingRepository.findById(bookingId)
@@ -124,17 +103,18 @@ public class BookingService {
                 .collect(Collectors.toList());
     }
 
-    private BookingResponse toResponse(Booking booking) {   //maps a Booking entity to a BookingResponse
+    private BookingResponse toResponse(Booking booking) {
         return new BookingResponse(
-            booking.getId(),
-            booking.getListingId(),
-            booking.getGuestUserId(),
-            booking.getCheckIn(),
-            booking.getCheckOut(),
-            booking.getStatus(),
-            booking.getTotalAmount(),
-            booking.getCurrency(),
-            booking.getCreatedAt()
+                booking.getId(),
+                booking.getListingId(),
+                booking.getGuestUserId(),
+                booking.getCheckIn(),
+                booking.getCheckOut(),
+                booking.getStatus(),
+                booking.getTotalAmount(),
+                booking.getCurrency(),
+                booking.getCreatedAt()
         );
     }
+
 }

@@ -22,11 +22,12 @@ public class PaymentClient {
                 .build();
     }
 
-    public boolean charge(UUID bookingId, BigDecimal amount) {
+    public boolean charge(UUID bookingId, BigDecimal amount, String authHeader) {
         ChargeRequestDto request = new ChargeRequestDto(bookingId, amount);
 
         ChargeResponseDto response = restClient.post()
                 .uri("/payments")
+                .header("Authorization", authHeader)
                 .body(request)
                 .retrieve()
                 .body(ChargeResponseDto.class);
