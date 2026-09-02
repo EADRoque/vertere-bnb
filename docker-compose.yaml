@@ -65,9 +65,23 @@ services:   #declaration of containers manage in this compose file
     volumes:
       - messaging_pgdata:/var/lib/postgresql/data
 
+  notification-postgres:
+    image: postgres:16
+    container_name: vertere-bnb-notification-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: notificationdb
+    ports:
+      - "5437:5432"
+    volumes:
+      - notification_pgdata:/var/lib/postgresql/data
+
 volumes:
   pgdata:
   booking_pgdata:
   payment_pgdata:
   review_pgdata:
   messaging_pgdata:
+  notification_pgdata:
