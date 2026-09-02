@@ -52,8 +52,22 @@ services:   #declaration of containers manage in this compose file
     volumes:
       - review_pgdata:/var/lib/postgresql/data
 
+  messaging-postgres:
+    image: postgres:16
+    container_name: vertere-bnb-messaging-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: messagingdb
+    ports:
+      - "5436:5432"
+    volumes:
+      - messaging_pgdata:/var/lib/postgresql/data
+
 volumes:
   pgdata:
   booking_pgdata:
   payment_pgdata:
   review_pgdata:
+  messaging_pgdata:
