@@ -1,26 +1,37 @@
+# .gitlab-ci.yml
+# This defines the CI pipeline that runs automatically on GitLab for
+# every push. Each microservice gets its own job that spins up a fresh
+# Postgres database, waits for it to be ready, and runs that service's
+# Gradle test suite against it. The jobs are all shaped the same way -
+# only the service name, database name, and folder differ.
+
 stages:
-  - test
+  - test   #the only pipeline stage; every job below runs in it
 
 test-user-service:
   stage: test
-  image: eclipse-temurin:21-jdk
+  image: eclipse-temurin:21-jdk   #a JDK 21 image, since these are Java/Spring Boot services
   variables:
-    FF_NETWORK_PER_BUILD: "true"
+    FF_NETWORK_PER_BUILD: "true"   #gives this job its own private Docker network, so the "postgres" service hostname resolves correctly
     POSTGRES_USER: postgres
     POSTGRES_PASSWORD: postgres
-    POSTGRES_DB: userdb
-    SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/userdb
+    POSTGRES_DB: userdb   #the database this service's tests connect to
+    SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/userdb   #"postgres" here is the service alias below, not localhost
     SPRING_DATASOURCE_USERNAME: postgres
     SPRING_DATASOURCE_PASSWORD: postgres
   services:
-    - name: postgres:16
-      alias: postgres
+    - name: postgres:16   #GitLab spins this up as a linked container alongside the job
+      alias: postgres   #the hostname other config in this job uses to reach it
   script:
-    - apt-get update && apt-get install -y postgresql-client
-    - until pg_isready -h postgres -p 5432 -U postgres; do echo "Waiting for postgres..."; sleep 2; done
+    - apt-get update && apt-get install -y postgresql-client   #installs pg_isready, used just below
+    - until pg_isready -h postgres -p 5432 -U postgres; do echo "Waiting for postgres..."; sleep 2; done   #don't run tests before the database container is actually accepting connections
     - cd user-service
-    - chmod +x gradlew
+    - chmod +x gradlew   #the checked-in wrapper script needs execute permission on Linux runners
     - ./gradlew test
+
+# Everything below repeats the exact same shape as test-user-service -
+# only the service name, POSTGRES_DB, SPRING_DATASOURCE_URL, and the "cd"
+# target change per service.
 
 test-listing-service:
   stage: test
@@ -149,5 +160,13 @@ test-notification-service:
     - apt-get update && apt-get install -y postgresql-client
     - until pg_isready -h postgres -p 5432 -U postgres; do echo "Waiting for postgres..."; sleep 2; done
     - cd notification-service
+    - chmod +x gradlew
+    - ./gradlew test
+
+test-api-gateway:
+  stage: test
+  image: eclipse-temurin:21-jdk
+  script:
+    - cd api-gateway
     - chmod +x gradlew
     - ./gradlew test
