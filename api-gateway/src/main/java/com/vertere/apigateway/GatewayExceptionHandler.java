@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;   //the status code we translate the
 import org.springframework.http.ResponseEntity;   //wraps a response body together with its status code
 import org.springframework.web.bind.annotation.ExceptionHandler;   //marks a method as handling a specific exception type
 import org.springframework.web.bind.annotation.RestControllerAdvice;   //applies these handlers globally, across every controller
+import org.springframework.web.servlet.resource.NoResourceFoundException;   //thrown for any path with no matching route (e.g. Render's own "/" health check) - not a real gateway failure
 
 /**
  * This class catches exceptions thrown anywhere in the gateway's request
@@ -33,14 +34,15 @@ public class GatewayExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
     }
 
+    @ExceptionHandler(NoResourceFoundException.class)   //a path with no matching route at all (e.g. "/" - Render's own health check target) - a plain 404, not a gateway failure
+    public ResponseEntity<String> handleNoRoute(NoResourceFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Not found");
+    }
+
     @ExceptionHandler(Exception.class)   //catch-all - only reached when nothing more specific above matched
     public ResponseEntity<String> handleUnexpected(Exception ex) {
         log.error("Unexpected gateway error", ex);
-        // TEMPORARY: surfacing the real exception in the response body to diagnose the
-        // Render 502 without relying on log-hunting. Revert to a generic message once fixed.
-        Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
-        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
-                .body(cause.getClass().getName() + ": " + cause.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body("Something went wrong reaching the backend. Please try again.");
     }
 
 }
