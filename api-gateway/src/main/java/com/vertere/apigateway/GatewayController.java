@@ -25,7 +25,9 @@ import jakarta.servlet.http.HttpServletRequest;   //gives raw access to the inco
  *   target URL, copies over the method, query string, headers (except
  *   host/content-length, which must be recalculated for the new
  *   destination), and body, sends it to the resolved backend, and
- *   returns that backend's response byte-for-byte and header-for-header.
+ *   returns that backend's response byte-for-byte, skipping the same
+ *   kind of framing headers (transfer-encoding/content-length/connection)
+ *   on the way back so the response we send isn't self-contradictory.
  */
 @RestController   //marks this as a REST controller whose method return values become the response body
 public class GatewayController {
@@ -68,12 +70,22 @@ public class GatewayController {
         }
 
         return requestSpec
-                .exchange((clientRequest, clientResponse) ->   //exchange() gives full control over building the response, instead of retrieve() auto-throwing on error statuses
-                        ResponseEntity
-                                .status(clientResponse.getStatusCode())   //pass the backend's exact status code back to the client
-                                .headers(clientResponse.getHeaders())   //pass the backend's exact headers back to the client
-                                .body(clientResponse.getBody().readAllBytes())   //pass the backend's exact body back to the client
-                );
+                .exchange((clientRequest, clientResponse) -> {   //exchange() gives full control over building the response, instead of retrieve() auto-throwing on error statuses
+                    byte[] responseBody = clientResponse.getBody().readAllBytes();
+                    var responseBuilder = ResponseEntity.status(clientResponse.getStatusCode());   //pass the backend's exact status code back to the client
+                    clientResponse.getHeaders().forEach((name, values) -> {
+                        //skip hop-by-hop headers describing the backend's own response framing - Spring/Tomcat
+                        //recomputes these for the byte array we're about to send, and copying the backend's
+                        //"Transfer-Encoding: chunked" verbatim alongside our own computed Content-Length produces
+                        //an ambiguous response that Cloudflare (in front of every Render service) resets mid-write
+                        if (!name.equalsIgnoreCase("transfer-encoding")
+                                && !name.equalsIgnoreCase("content-length")
+                                && !name.equalsIgnoreCase("connection")) {
+                            responseBuilder.header(name, values.toArray(new String[0]));
+                        }
+                    });
+                    return responseBuilder.body(responseBody);   //pass the backend's exact body back to the client
+                });
     }
 
 }
