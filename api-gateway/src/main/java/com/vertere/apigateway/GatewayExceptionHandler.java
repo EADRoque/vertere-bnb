@@ -36,7 +36,11 @@ public class GatewayExceptionHandler {
     @ExceptionHandler(Exception.class)   //catch-all - only reached when nothing more specific above matched
     public ResponseEntity<String> handleUnexpected(Exception ex) {
         log.error("Unexpected gateway error", ex);
-        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body("Something went wrong reaching the backend. Please try again.");
+        // TEMPORARY: surfacing the real exception in the response body to diagnose the
+        // Render 502 without relying on log-hunting. Revert to a generic message once fixed.
+        Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .body(cause.getClass().getName() + ": " + cause.getMessage());
     }
 
 }
