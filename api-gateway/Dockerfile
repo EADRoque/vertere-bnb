@@ -11,5 +11,6 @@ FROM eclipse-temurin:21-jre
 WORKDIR /app
 COPY --from=build /app/build/libs/*.jar app.jar
 EXPOSE 8080
-# -Xmx caps heap so 8 of these can coexist comfortably on one small host
-ENTRYPOINT ["java", "-Xmx256m", "-jar", "app.jar"]
+# On Render each service gets its own dedicated container (not a shared host),
+# so this only needs to fit within this one instance's own memory limit.
+ENTRYPOINT ["java", "-Xmx400m", "-jar", "app.jar"]

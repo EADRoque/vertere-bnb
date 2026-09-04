@@ -39,8 +39,8 @@ public class GatewayExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Not found");
     }
 
-    @ExceptionHandler(Exception.class)   //catch-all - only reached when nothing more specific above matched
-    public ResponseEntity<String> handleUnexpected(Exception ex) {
+    @ExceptionHandler(Throwable.class)   //catch-all, including Errors (e.g. OutOfMemoryError) - Exception alone would silently miss those, killing the request with no logged cause
+    public ResponseEntity<String> handleUnexpected(Throwable ex) {
         log.error("Unexpected gateway error", ex);
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body("Something went wrong reaching the backend. Please try again.");
     }
