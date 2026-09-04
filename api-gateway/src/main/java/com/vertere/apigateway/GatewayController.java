@@ -4,6 +4,7 @@ import java.util.Enumeration;   //the old-style iterator type HttpServletRequest
 
 import org.springframework.http.HttpMethod;   //represents GET/POST/PUT/etc. so we can forward the same verb
 import org.springframework.http.ResponseEntity;   //wraps a response body together with its status code/headers
+import org.springframework.http.client.SimpleClientHttpRequestFactory;   //a plain HttpURLConnection-based client - purely synchronous, unlike the JDK HttpClient RestClient otherwise defaults to
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestClient;   //Spring's HTTP client, used here to call the actual backend service
@@ -32,7 +33,13 @@ import jakarta.servlet.http.HttpServletRequest;   //gives raw access to the inco
 @RestController   //marks this as a REST controller whose method return values become the response body
 public class GatewayController {
 
-    private final RestClient restClient = RestClient.create();   //a plain client with no fixed base URL, since the target changes per request
+    //JDK HttpClient (RestClient's default backing client) runs requests through its own internal async
+    //machinery, which was causing "connection reset" failures when writing the proxied response back to
+    //the original caller. SimpleClientHttpRequestFactory (HttpURLConnection-based) is purely synchronous,
+    //staying on the same servlet request thread end to end.
+    private final RestClient restClient = RestClient.builder()
+            .requestFactory(new SimpleClientHttpRequestFactory())
+            .build();   //a plain client with no fixed base URL, since the target changes per request
     private final RequestRouter requestRouter;
 
     public GatewayController(RequestRouter requestRouter) {   //Spring automatically supplies this bean
