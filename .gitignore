@@ -25,3 +25,8 @@ reference-docs/
 
 # Stray debug output files
 **/build_error.txt
+
+# Environment files - real secrets/values for docker-compose.prod.yaml live here locally
+# or as CI/CD variables; only the documented template is tracked.
+.env
+!.env.example

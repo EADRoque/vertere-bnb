@@ -1,12 +1,22 @@
 # .gitlab-ci.yml
-# This defines the CI pipeline that runs automatically on GitLab for
-# every push. Each microservice gets its own job that spins up a fresh
-# Postgres database, waits for it to be ready, and runs that service's
-# Gradle test suite against it. The jobs are all shaped the same way -
-# only the service name, database name, and folder differ.
+# This defines the CI/CD pipeline that runs automatically on GitLab for
+# every push. Two stages:
+#   test   - each microservice's own job spins up a fresh Postgres and
+#            runs its Gradle test suite against it.
+#   deploy - (main branch only, and only if every test job above passes)
+#            tells Render to redeploy each backend service by hitting
+#            its Deploy Hook URL. Render itself builds the Docker image
+#            from each service's Dockerfile and handles the actual
+#            rollout - this job's only job is to trigger that, gated on
+#            tests passing (Render's own git watch would otherwise
+#            deploy independently of whether tests passed). The
+#            frontend is NOT part of this pipeline at all - it's a
+#            static build published by GitHub Pages' own workflow on the
+#            mirrored repo.
 
 stages:
-  - test   #the only pipeline stage; every job below runs in it
+  - test
+  - deploy
 
 test-user-service:
   stage: test
@@ -163,6 +173,9 @@ test-notification-service:
     - chmod +x gradlew
     - ./gradlew test
 
+# api-gateway has no database of its own, so unlike every job above it
+# needs no postgres service, no wait-for-postgres step, and no
+# datasource variables - it's the simplest job in this file.
 test-api-gateway:
   stage: test
   image: eclipse-temurin:21-jdk
@@ -170,3 +183,36 @@ test-api-gateway:
     - cd api-gateway
     - chmod +x gradlew
     - ./gradlew test
+
+# ---------------------------------------------------------------------
+# deploy stage - only runs on main, and only after every test job above
+# passes. Render can't connect directly to a self-hosted GitLab instance
+# (its native git integration only supports github.com and gitlab.com),
+# so instead of Render watching this repo, this job pushes the just-
+# tested commit straight to a GitHub mirror, and Render's own native
+# GitHub auto-deploy takes it from there for all 8 services. This is
+# also why a plain GitLab push-mirror (Settings > Repository >
+# Mirroring) isn't used for this: mirroring fires on every push
+# regardless of whether the pipeline later passes, which could let a
+# broken commit reach GitHub (and get deployed) before tests catch it.
+# This job is the only thing that pushes to GitHub's main branch.
+#
+# Requires 2 CI/CD variables under this project's Settings > CI/CD >
+# Variables:
+#   GITHUB_REPO   - e.g. "your-username/vertere-bnb" (not a secret)
+#   GITHUB_TOKEN  - a GitHub Personal Access Token with `repo` scope,
+#                   Masked (and Protected if this variable is only ever
+#                   needed on protected branches)
+# ---------------------------------------------------------------------
+
+deploy:
+  stage: deploy
+  image: alpine:latest
+  variables:
+    GIT_DEPTH: "0"   #full history, not a shallow clone - a shallow push to GitHub can produce a broken/incomplete history there
+  only:
+    - main
+  before_script:
+    - apk add --no-cache git
+  script:
+    - git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPO}.git" HEAD:main

@@ -38,3 +38,11 @@ dependencies {
 tasks.withType<Test> {
 	useJUnitPlatform()
 }
+
+// This service is a standalone app, not a library other projects depend
+// on, so the plain (non-executable) jar Spring Boot's plugin normally
+// builds alongside the real one is just noise - disabling it leaves
+// exactly one jar in build/libs, which Docker's COPY step needs.
+tasks.getByName<Jar>("jar") {
+	enabled = false
+}

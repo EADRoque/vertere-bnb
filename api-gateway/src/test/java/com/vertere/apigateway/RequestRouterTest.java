@@ -7,10 +7,12 @@ import org.junit.jupiter.api.Test;
 /**
  * This class checks that RequestRouter sends each kind of path to the
  * right backend service - no database or Spring context needed, since
- * RequestRouter is just plain logic over a hardcoded map.
+ * RequestRouter is just plain logic over a map built from its
+ * constructor args.
  *
- * - router: a real RequestRouter instance (not a mock) - there's nothing
- *   to fake here, it's pure logic.
+ * - router: a real RequestRouter instance (not a mock) built with the
+ *   same local dev URLs RequestRouter would default to on its own -
+ *   there's nothing to fake here, it's pure logic.
  * - resolvesToUserService_forAuthPaths: both /auth and /users paths
  *   should route to user-service.
  * - resolvesToListingService_forPlainListingPaths: a plain /listings
@@ -27,7 +29,15 @@ import org.junit.jupiter.api.Test;
  */
 class RequestRouterTest {
 
-    private final RequestRouter router = new RequestRouter();   //no mocking needed - this class has no external dependencies
+    private final RequestRouter router = new RequestRouter(   //no mocking needed - this class has no external dependencies
+            "http://localhost:8081",
+            "http://localhost:8082",
+            "http://localhost:8083",
+            "http://localhost:8084",
+            "http://localhost:8085",
+            "http://localhost:8086",
+            "http://localhost:8087"
+    );
 
     @Test
     void resolvesToUserService_forAuthPaths() {

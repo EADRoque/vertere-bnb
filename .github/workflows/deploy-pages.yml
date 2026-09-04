@@ -1,0 +1,67 @@
+# Builds and publishes vertere-bnb-ui to GitHub Pages on every push to
+# main. This repo's real CI/CD (tests, backend deploy) lives in GitLab -
+# this workflow only ever touches the static frontend build, and only
+# runs here because GitHub Pages requires a GitHub Actions workflow to
+# publish from. Enable it once under Settings > Pages > Source: GitHub
+# Actions on the GitHub mirror of this repo.
+
+name: Deploy frontend to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: vertere-bnb-ui
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: vertere-bnb-ui/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          # Points the deployed frontend at the live backend gateway on
+          # Render - update this if the gateway's Render service is ever
+          # renamed (see render.yaml).
+          VITE_API_BASE_URL: https://vertere-bnb-api-gateway.onrender.com/api
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload build artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: vertere-bnb-ui/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

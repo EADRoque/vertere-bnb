@@ -1,0 +1,171 @@
+# Render Blueprint - defines all 8 backend services as free Docker-based
+# web services in one place. Apply via Render's dashboard: New > Blueprint,
+# connected to the GitHub mirror of this repo (Render's native git
+# integration only supports github.com and gitlab.com directly, not a
+# self-hosted GitLab instance - GitLab CI pushes tested commits to that
+# GitHub mirror itself, see .gitlab-ci.yml's deploy stage, and Render's
+# own auto-deploy watches GitHub from there).
+#
+# Not handled here (Render Blueprints don't manage these):
+#   - The frontend: it's a static build published by GitHub Pages, not a
+#     Render service at all.
+#   - The database: Neon, not Render Postgres (Render's own free Postgres
+#     is deleted after 30 days - not suitable for anything long-lived).
+#     Each service's DB_URL/DB_USERNAME/DB_PASSWORD below is `sync: false`,
+#     meaning you set the real Neon connection details for that service by
+#     hand in the Render dashboard after creating the Blueprint.
+#
+# JWT_SECRET is repeated on each of the 7 backend services below (rather
+# than a shared envVarGroups entry) because Render silently drops any
+# `sync: false` variable placed inside an envVarGroup - it would never
+# actually get set. Paste the same random value into all 7 when Render
+# prompts for it during the Blueprint apply flow. api-gateway doesn't
+# need it - it's a pure proxy that never verifies JWTs itself.
+#
+# Service URLs on Render are deterministic from the `name` field
+# (https://<name>.onrender.com), which is how api-gateway's downstream
+# URLs below are already filled in rather than left blank - just make
+# sure you don't rename a service without updating every reference to it.
+# If any of these names are already taken by someone else's Render
+# account (subdomains are global), you'll need to pick different names
+# and update all the cross-references consistently.
+#
+# TLS is automatic per service on the *.onrender.com domain - no Caddy,
+# no certificates to manage.
+
+services:
+  - type: web
+    name: vertere-bnb-user-service
+    runtime: docker
+    plan: free
+    dockerfilePath: ./user-service/Dockerfile
+    dockerContext: ./user-service
+    envVars:
+      - key: JWT_SECRET
+        sync: false   # same random value across all 7 backend services
+      - key: DB_URL
+        sync: false   # Neon connection string for the userdb database
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+
+  - type: web
+    name: vertere-bnb-listing-service
+    runtime: docker
+    plan: free
+    dockerfilePath: ./listing-service/Dockerfile
+    dockerContext: ./listing-service
+    envVars:
+      - key: JWT_SECRET
+        sync: false   # same random value across all 7 backend services
+      - key: DB_URL
+        sync: false   # Neon connection string for the listingdb database
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+
+  - type: web
+    name: vertere-bnb-booking-service
+    runtime: docker
+    plan: free
+    dockerfilePath: ./booking-service/Dockerfile
+    dockerContext: ./booking-service
+    envVars:
+      - key: JWT_SECRET
+        sync: false   # same random value across all 7 backend services
+      - key: DB_URL
+        sync: false   # Neon connection string for the bookingdb database - must support CREATE EXTENSION btree_gist
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+
+  - type: web
+    name: vertere-bnb-payment-service
+    runtime: docker
+    plan: free
+    dockerfilePath: ./payment-service/Dockerfile
+    dockerContext: ./payment-service
+    envVars:
+      - key: JWT_SECRET
+        sync: false   # same random value across all 7 backend services
+      - key: DB_URL
+        sync: false   # Neon connection string for the paymentdb database
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+
+  - type: web
+    name: vertere-bnb-review-service
+    runtime: docker
+    plan: free
+    dockerfilePath: ./review-service/Dockerfile
+    dockerContext: ./review-service
+    envVars:
+      - key: JWT_SECRET
+        sync: false   # same random value across all 7 backend services
+      - key: DB_URL
+        sync: false   # Neon connection string for the reviewdb database
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+
+  - type: web
+    name: vertere-bnb-messaging-service
+    runtime: docker
+    plan: free
+    dockerfilePath: ./messaging-service/Dockerfile
+    dockerContext: ./messaging-service
+    envVars:
+      - key: JWT_SECRET
+        sync: false   # same random value across all 7 backend services
+      - key: DB_URL
+        sync: false   # Neon connection string for the messagingdb database
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+
+  - type: web
+    name: vertere-bnb-notification-service
+    runtime: docker
+    plan: free
+    dockerfilePath: ./notification-service/Dockerfile
+    dockerContext: ./notification-service
+    envVars:
+      - key: JWT_SECRET
+        sync: false   # same random value across all 7 backend services
+      - key: DB_URL
+        sync: false   # Neon connection string for the notificationdb database
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+
+  - type: web
+    name: vertere-bnb-api-gateway
+    runtime: docker
+    plan: free
+    dockerfilePath: ./api-gateway/Dockerfile
+    dockerContext: ./api-gateway
+    envVars:
+      - key: USER_SERVICE_URL
+        value: https://vertere-bnb-user-service.onrender.com
+      - key: LISTING_SERVICE_URL
+        value: https://vertere-bnb-listing-service.onrender.com
+      - key: BOOKING_SERVICE_URL
+        value: https://vertere-bnb-booking-service.onrender.com
+      - key: PAYMENT_SERVICE_URL
+        value: https://vertere-bnb-payment-service.onrender.com
+      - key: REVIEW_SERVICE_URL
+        value: https://vertere-bnb-review-service.onrender.com
+      - key: MESSAGING_SERVICE_URL
+        value: https://vertere-bnb-messaging-service.onrender.com
+      - key: NOTIFICATION_SERVICE_URL
+        value: https://vertere-bnb-notification-service.onrender.com
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false   # set to your GitHub Pages URL once it exists (see Phase 7 of the deploy walkthrough)
